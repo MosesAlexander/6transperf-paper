@@ -1,4 +1,4 @@
-\documentclass[a4paper,12p]{article}
+\documentclass[a4paper,12p,titlepage]{article}
 \usepackage[utf8]{inputenc}
 \usepackage{listings}
 \usepackage{amsmath}
@@ -15,6 +15,8 @@
 \date{February 2022}
 \end{titlepage}
 \maketitle
+\tableofcontents
+\newpage
 
 \section{Summary}
 Currently Internet is in a transition from IPv4 to IPv6. To facilitate the communication of these two incompatible versions of the Internet Protocol, IETF has defined a high number of IPv6 transition technologies, which have several different implementations. Their performance is an important decision factor for the network operators, when choosing the most suitable one of their purposes. 
@@ -108,15 +110,18 @@ Non-fixed parameters such as frame size, frame rate, number of queues, logical c
 
 All the supported measurements are implemented by one binary, and different parameters to the binary shall run different types of tests for different technologies. The full range of the command line arguments that 6transperf supports and all possible combinations of these parameters shall be output to the standard output before immediately exiting if 6transperf is ran without it being supplied any parameters. Although RFC8219 considers the throughput, latency, pdv, ipdv and frame loss rate to be separate tests, generally all tests will report the throughput and frame loss rate for any given configuration of the tester. 6transperf uses positional command line parameters, the ones common to all tests being:
 
--Frame size (in bytes), this shall be the frame size minus the overhead, as the overhead can be different for each port depending on the configuration, as one port may be sending IPv4 frames while the other is sending 4in6 encapsulated frames for example.
+\begin{itemize}
+\item Frame size (in bytes), this shall be the frame size minus the overhead, as the overhead can be different for each port depending on the configuration, as one port may be sending IPv4 frames while the other is sending 4in6 encapsulated frames for example.
 
--Frame rate (in frames per second)
 
--Test duration (in seconds)
+\item Frame rate (in frames per second)
 
--RX Delay (in seconds) this parameter controls the window of time in which we continue to run the receive side threads after the transmit side threads have ended their execution, this is to give time for all packets on the NIC’s receive buffers to be processed.
+\item Test duration (in seconds)
 
--TX Delay (in seconds) this parameter adds a waiting period between the NIC initialization and the transmission loop. It has been observed that even though the init function of the network driver may return, the actual hardware may not be able to transmit any traffic, thus causing packets to accumulate at the beginning of the test, and thus a spike at the beginning of the packet stream.
+\item RX Delay (in seconds) this parameter controls the window of time in which we continue to run the receive side threads after the transmit side threads have ended their execution, this is to give time for all packets on the NIC’s receive buffers to be processed.
+
+\item TX Delay (in seconds) this parameter adds a waiting period between the NIC initialization and the transmission loop. It has been observed that even though the init function of the network driver may return, the actual hardware may not be able to transmit any traffic, thus causing packets to accumulate at the beginning of the test, and thus a spike at the beginning of the packet stream.
+\end{itemize}
 
 \subsection{Types of measurements:}
 \subsubsection{Throughput and Frame Loss Rate Measurements}
@@ -369,6 +374,9 @@ The base architecture is formed by 3 base classes. Tester, PortConfig and Port. 
 
 The Tester class contains generic packet manipulation methods, such as those related to encapsulating/decapsulating a packet, or constructing an IPv4, IPv6 or pre-encapsulated packet. 
 
+\begin{frame}
+
+\lstset{language=C++,breaklines=true,numbers=left}
 \begin{lstlisting}
 class Tester
 {
@@ -405,6 +413,7 @@ public:
         virtual ~Tester() = default;
 };
 \end{lstlisting}
+\end{frame}
 
 The "ports\_vector" is a collection of ports supplied to 6transperf via command line, there’s no logic into the Tester class about what the purpose behind these ports is, it is up to tester classes which extend class Tester to use these ports however it sees fit.
 
@@ -419,6 +428,9 @@ Any class extending the Tester class is required to override the set\_lcore\_all
 The add\_port() method adds port to the Tester’s ports\_vector.
 The PortConfig class is where port related configurations and methods are kept, mainly setting mac and IP adresses, and determining if a given interface is a tunnel interface.
 
+\begin{frame}
+
+\lstset{language=C++,breaklines=true,numbers=left}
 \begin{lstlisting}
 class PortConfig
 {
@@ -440,10 +452,15 @@ private:
         void SetIp6(string &line, bool self);
 };
 \end{lstlisting}
+\end{frame}
+
 In the case of the DSLiteTester class, the is\_ipip6\_tun\_intf Boolean variable will decide for the given port if the IPv4 packets are to be created within an IPv6 tunnel using the given IPv4 and IPv6 provided addresses in the configuration file.
 
 The Port class contains the more lower-level details of the NIC’s ports, such as the number of receive and transmit queues in use, as well as the initialization procedure.
 
+\begin{frame}
+
+\lstset{language=C++,breaklines=true,numbers=left}
 \begin{lstlisting}
 class Port
 {
@@ -464,11 +481,15 @@ public:
         Port(int id) : m_port_id(id) { };
 };
 \end{lstlisting}
+\end{frame}
 
 The m\_initialized variable signals to any users of the Port class that the port is initialized, the m\_port\_id is a unique identifier from 0 to n-1 where n is the number of ports added to the Tester class. The m\_socked\_id is the CPU socket number where the NIC which owns this port is located, this is used so that memory local to the CPU socket on which the port is located is allocated for packets.
 
 The rx/tx queue indexes together with the queue mutexes are used for the logical core to queue mapping:
 
+\begin{frame}
+
+\lstset{language=C++,breaklines=true,numbers=left}
 \begin{lstlisting}
                 port0->rx_queue_mutex.lock();
                 if (!port0->rx_queue_index.empty())
@@ -480,9 +501,13 @@ The rx/tx queue indexes together with the queue mutexes are used for the logical
 
                 rx_ready_counter++;
 \end{lstlisting}
+\end{frame}
 
 The init function of the port takes as parameters a PortConfig object, and the number of queue pairs to allocate for the given port.
 
+\begin{frame}
+
+\lstset{language=C++,breaklines=true,numbers=left}
 \begin{lstlisting}
 int Port::init(int num_queues, PortConfig *config) {
         int ret;
@@ -523,11 +548,15 @@ int Port::init(int num_queues, PortConfig *config) {
         return 0;
 }
 \end{lstlisting}
+\end{frame}
 
 In order to save up some space and make the code more readable we took the liberty to remove error checks from this code snipped and kept only the main logic of the init function in plan view. As num\_queues refers to the number of queue PAIRS, the same number is assigned both to the Port’s number of tx and rx queues. An index is added to each rx/tx index queues whose purpose was mentioned a few paragraphs prior.
 
 A very important part of the initialization procedure is the call to rte\_eth\_dev\_configure(), which passes the port\_conf\_default structure containing the following hardware related configurations:
 
+\begin{frame}
+
+\lstset{language=C++,breaklines=true,numbers=left}
 \begin{lstlisting}
 static struct rte_eth_conf port_conf_default = {
         .rxmode = {
@@ -542,6 +571,7 @@ static struct rte_eth_conf port_conf_default = {
         },
 };
 \end{lstlisting}
+\end{frame}
 
 It is here that we can select the hash function used for receive side scaling. The specific hash functions supported is determined solely by the NIC hardware, the above functions are those supported by the “Intel Corporation Ethernet 10G 2P X520” network adapter used in the laboratory experiments whose will be posted in this document. 
 
@@ -549,6 +579,9 @@ Known issue: It shall be noted that this network adapter does not seem to suppor
 	
 The DSLiteTester class keeps a reference to each port, their logical core allocations, and contains the main loop where packets are generated and received:
 
+\begin{frame}
+
+\lstset{language=C++,breaklines=true,numbers=left}
 \begin{lstlisting}
 class DSLiteTester : public Tester
 {
@@ -564,6 +597,7 @@ public:
         void set_lcore_allocation(uint64_t port0_mask, uint64_t port1_mask);
 };
 \end{lstlisting}
+\end{frame}
 
 	The runtest() method is the function that is of the highest interest in 6transperf, as it contains the main traffic loop for both TX and RX paths of each port. This function is split into 4 loops, 2 of the loops corresponding to the transmit and receive path of port0, and 2 loops corresponding to the transmit and receive path of port1. 
 
@@ -575,6 +609,9 @@ The first step is to record an initial time before entering the transmit loop:
 
 Afterwards we enter a loop which specifies the exact number of frames to send for the duration of the test run:
 
+\begin{frame}
+
+\lstset{language=C++,breaklines=true,numbers=left}
 \begin{lstlisting}
 for (sent_frames = 0; sent_frames < frames_to_send; sent_frames++)
 {
@@ -582,6 +619,7 @@ for (sent_frames = 0; sent_frames < frames_to_send; sent_frames++)
 	SEND_TX_BURST(port, frame);
 }
 \end{lstlisting}
+\end{frame}
 
 As seen above, before each packet burst, we busy-wait within an empty loop waiting on the following condition:
 
@@ -596,6 +634,9 @@ frames\ to\ send = test\ duration * target\ frames\ per\ second
 \end{equation}
 
 Let us move on to the first loop of the data path:
+\begin{frame}
+
+\lstset{language=C++,breaklines=true,numbers=left}
 \begin{lstlisting}
         /*
          * We do a 1:1 mapping between queue and lcore, so in the tester case
@@ -611,11 +652,15 @@ Let us move on to the first loop of the data path:
          */
         if (port0_lcore_rx_mask & (0x1ULL << lcore))
 \end{lstlisting}
+\end{frame}
 
 The first thing we notice before the start of each loop is the portX\_lcore\_\{rx,tx\}\_mask bitmask which acts as a sieve for the logical core identifiers. Only the logical cores which belong to this port and traffic direction allocation shall be permitted to enter the body of this loop. The disadvantage of using this model is that currently 6transperf only supports up to 64 logical cores, but in the future we plan to replace this bitmask with std::bitset which will allow us to use arbitrarily large bitmasks. As the comment above suggests there is a one-to-one mapping between queues and logical cores, which in the case of DSLite results in the requirement that the number of bits in the given bitmasks must be a multiple of 4.
 
 Once we enter the code block which contains the body of the given logical core’s loop, the first thing we do is grab a queue descriptor from the queue descriptor std::queue of the Port class:
 
+\begin{frame}
+
+\lstset{language=C++,breaklines=true,numbers=left}
 \begin{lstlisting}
                 port0->rx_queue_mutex.lock();
                 if (!port0->rx_queue_index.empty())
@@ -628,6 +673,7 @@ Once we enter the code block which contains the body of the given logical core�
                 rx_ready_counter++;
 
 \end{lstlisting}
+\end{frame}
 
 These indexes are a global resource from the perspective of each given port so they need to be protected by the corresponding mutex for the given queue. These mutexes do not affect the datapath performance however as this is still part of the “setup” phase outside of the main loop body which handles the traffic.
 
@@ -635,6 +681,9 @@ Once a queue index is grabbed, we release the lock and we signal the tx thread t
 
 The below pseudocode describes the main receive loop:
 
+\begin{frame}
+
+\lstset{language=C++,breaklines=true,numbers=left}
 \begin{lstlisting}
 while(rx_running) {
 	received packets = RECEIVE_RX_BURST(port);
@@ -648,10 +697,14 @@ while(rx_running) {
 	}
 }
 \end{lstlisting}
+\end{frame}
 
 The first thing that happens within this loop is that we receive a number of packets. Right upon receiving, we issue a read to the TSC register so that we consider the point of receiving the packet burst to be the moment in which the frame has reached this port. Each packet contains the queue id from which it was transmitted and a unique identifier used as an index into the timestamp array. An identifier string to differentiate test traffic from background traffic is also stored within the frame and is verified before attempting to extract the queue and packet ids.
 	We shall move on to describing the body of the transmit loop:
 
+\begin{frame}
+
+\lstset{language=C++,breaklines=true,numbers=left}
 \begin{lstlisting}
 while(tx_running) {
 	initial time = READ_TSC();
@@ -665,12 +718,16 @@ while(tx_running) {
 }
 
 \end{lstlisting}
+\end{frame}
 
 	As opposed to the receive path, the transmit path needs to concern itself with the rate at which packets are handled. As can be seen in the pseudocode above, we save the initial value of the TSC counter and adjust the absolute time necessary by multiplying by the current frame number with the TSC frequency divided by the target frames per second.
 	Execution of the runtest() method itself is triggered by the traffic\_lcore\_thread which is started for each logical core by the DPDK runtime function, this is the function responsible for calling the “runtest()” method of the testerand distributing the roles of each logical core for a specific type of tester:
  
 After which the exact tester type is identified and the according runtest() method is executed:
 
+\begin{frame}
+
+\lstset{language=C++,breaklines=true,numbers=left}
 \begin{lstlisting}
 int
 traffic_lcore_thread(void *arg __rte_unused)
@@ -688,6 +745,7 @@ traffic_lcore_thread(void *arg __rte_unused)
         return 0;
 }
 \end{lstlisting}
+\end{frame}
 
 \subsection{Overview of the B4 element testing:}
 
@@ -705,6 +763,9 @@ The end of the function has a very important role in identifying the test packet
 
 The functionality of this method has been tested against the linux ipip6 tunnel interface.
 
+\begin{frame}
+
+\lstset{language=C++,breaklines=true,numbers=left}
 \begin{lstlisting}
 void Tester::construct_ipip6_packet(PortConfig *config, char *buf, int buf_len, bool timestamp_all_packets, uint64_t pkt_id, uint64_t queue_id)
 {
@@ -715,6 +776,7 @@ void Tester::construct_ipip6_packet(PortConfig *config, char *buf, int buf_len, 
 }
 
 \end{lstlisting}
+\end{frame}
 
 The below picture offers an accurate description of the timestamping logic:
 
@@ -723,6 +785,9 @@ The below picture offers an accurate description of the timestamping logic:
 
 The pkt\_id and queue\_id are extracted during the receive path:
 
+\begin{frame}
+
+\lstset{language=C++,breaklines=true,numbers=left}
 \begin{lstlisting}
         if (timestamp_all_packets) {
                 uint64_t qnum, pktid;
@@ -736,9 +801,13 @@ The pkt\_id and queue\_id are extracted during the receive path:
              port0_tsc_pairs_array[qnum][pktid].rx_tsc_value=received_tsc;
         }
 \end{lstlisting}
+\end{frame}
 
 The functions for extracting the pkt\_id, and queue\_ids and for verifying that the current frame is a test frame are simple functions reading into specific offsets of the received mbuf:
 
+\begin{frame}
+
+\lstset{language=C++,breaklines=true,numbers=left}
 \begin{lstlisting}
 
 inline uint64_t extract_ipip6_queue_id(char *buf)
@@ -756,6 +825,7 @@ inline uint64_t extract_ipip6_queue_id(char *buf)
 }
 
 \end{lstlisting}
+\end{frame}
 
 \subsection{Tests and results:}
 
